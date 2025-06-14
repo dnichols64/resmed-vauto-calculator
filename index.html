@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ResMed VAuto Settings Calculator</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 450px; margin: 40px auto; padding: 0 15px; }
+  label { display: block; margin-top: 15px; font-weight: bold; }
+  input { width: 100%; padding: 8px; font-size: 1rem; margin-top: 5px; box-sizing: border-box; }
+  button { margin-top: 20px; padding: 10px; font-size: 1.1rem; width: 100%; cursor: pointer; }
+  .output { margin-top: 20px; }
+  .output input { background-color: #f5f5f5; font-weight: bold; }
+  #warnings { color: red; margin-top: 20px; min-height: 50px; }
+</style>
+</head>
+<body>
+
+<h1>ResMed VAuto Settings Calculator</h1>
+
+<label for="desiredMaxIpap">Max IPAP (4.0 - 25.0)</label>
+<input type="number" id="desiredMaxIpap" step="0.2" min="4" max="25" placeholder="e.g. 12.0" />
+
+<label for="desiredMinEpap">Min EPAP (4.0 - 25.0)</label>
+<input type="number" id="desiredMinEpap" step="0.2" min="4" max="25" placeholder="e.g. 10.0" />
+
+<label for="desiredPs">PS (0.0 - 10.0)</label>
+<input type="number" id="desiredPs" step="0.2" min="0" max="10" placeholder="e.g. 2.0" />
+
+<button id="calculateButton">Calculate Settings</button>
+
+<div id="warnings"></div>
+
+<div class="output">
+  <label for="actualMaxIpap">Actual Max IPAP</label>
+  <input type="text" id="actualMaxIpap" readonly />
+
+  <label for="actualMinEpap">Actual Min EPAP</label>
+  <input type="text" id="actualMinEpap" readonly />
+
+  <label for="actualPs">Actual PS</label>
+  <input type="text" id="actualPs" readonly />
+</div>
+
+<script>
+// Helper functions
+function ROUND_DOWN_TO_0_2(value) {
+  return Math.floor(value * 5) / 5;
+}
+
+function CLAMP(value, min_val, max_val) {
+  if (value < min_val) return min_val;
+  if (value > max_val) return max_val;
+  return value;
+}
+
+// Main calculator function
+function CALCULATE_RESMED_VAUTO_SETTINGS(minEpap, maxIpap, ps) {
+  const MIN_PRESSURE_LIMIT = 4.0;
+  const MAX_PRESSURE_LIMIT = 25.0;
+  const MIN_PS_LIMIT = 0.0;
+  const MAX_PS_LIMIT = 10.0;
+
+  let actualMinEpap = ROUND_DOWN_TO_0_2(CLAMP(minEpap, MIN_PRESSURE_LIMIT, MAX_PRESSURE_LIMIT));
+  let actualMaxIpap = ROUND_DOWN_TO_0_2(CLAMP(maxIpap, MIN_PRESSURE_LIMIT, MAX_PRESSURE_LIMIT));
+
+  // Handle conflict: Max IPAP < Min EPAP
+  if (actualMaxIpap < actualMinEpap) {
+    return {
+      "Min EPAP": actualMinEpap.toFixed(1),
+      "Max IPAP": actualMinEpap.toFixed(1),
+      "PS": "0.0"
+    };
+  }
+
+  // Calculate PS capped by difference between Max IPAP and Min EPAP
+  let psCandidate = ROUND_DOWN_TO_0_2(CLAMP(ps, MIN_PS_LIMIT, MAX_PS_LIMIT));
+  let maxAllowedPs = actualMaxIpap - actualMinEpap;
+  let actualPs = Math.min(psCandidate, maxAllowedPs);
+  actualPs = ROUND_DOWN_TO_0_2(actualPs);
+
+  return {
+    "Min EPAP": actualMinEpap.toFixed(1),
+    "Max IPAP": actualMaxIpap.toFixed(1),
+    "PS": actualPs.toFixed(1)
+  };
+}
+
+// DOM elements
+const maxIpapInput = document.getElementById('desiredMaxIpap');
+const minEpapInput = document.getElementById('desiredMinEpap');
+const psInput = document.getElementById('desiredPs');
+const calcBtn = document.getElementById('calculateButton');
+const warningsDiv = document.getElementById('warnings');
+const actualMaxIpapOutput = document.getElementById('actualMaxIpap');
+const actualMinEpapOutput = document.getElementById('actualMinEpap');
+const actualPsOutput = document.getElementById('actualPs');
+
+// Check input order and show warnings
+function checkInputOrderAndWarnings(maxIpap, minEpap, ps) {
+  const MIN_PRESSURE_LIMIT = 4.0;
+  const MAX_PRESSURE_LIMIT = 25.0;
+  const MIN_PS_LIMIT = 0.0;
+  const MAX_PS_LIMIT = 10.0;
+
+  let messages = [];
+
+  if (isNaN(maxIpap)) {
+    messages.push("Please enter Max IPAP first.");
+    return messages;
+  }
+  if (maxIpap < MIN_PRESSURE_LIMIT || maxIpap > MAX_PRESSURE_LIMIT) {
+    messages.push(`Max IPAP must be between ${MIN_PRESSURE_LIMIT} and
