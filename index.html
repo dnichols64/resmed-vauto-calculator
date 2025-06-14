@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ResMed VAuto Calculator</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 2em; }
+        label { display: block; margin-top: 1em; }
+        input { width: 100%; padding: 0.5em; margin-top: 0.3em; }
+        button { margin-top: 1.5em; padding: 0.75em 1.5em; }
+        output { display: block; margin-top: 1em; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>ResMed VAuto Settings Calculator</h1>
+
+    <label for="desiredMinEpap">Desired Min EPAP:</label>
+    <input type="number" step="0.1" id="desiredMinEpap" placeholder="e.g., 5.0">
+
+    <label for="desiredMaxIpap">Desired Max IPAP:</label>
+    <input type="number" step="0.1" id="desiredMaxIpap" placeholder="e.g., 15.0">
+
+    <label for="desiredPs">Desired PS (Pressure Support):</label>
+    <input type="number" step="0.1" id="desiredPs" placeholder="e.g., 4.0">
+
+    <button id="calculateButton">Calculate</button>
+
+    <output id="actualMinEpap">Min EPAP: </output>
+    <output id="actualMaxIpap">Max IPAP: </output>
+    <output id="actualPs">PS: </output>
+
+    <script>
+        function ROUND_DOWN_TO_0_2(value) {
+            return Math.floor(value * 5) / 5;
+        }
+
+        function CLAMP(value, min_val, max_val) {
+            if (value < min_val) return min_val;
+            if (value > max_val) return max_val;
+            return value;
+        }
+
+        function CALCULATE_RESMED_VAUTO_SETTINGS(desired_min_epap, desired_max_ipap, desired_ps) {
+            const MIN_PRESSURE_LIMIT = 4.0;
+            const MAX_PRESSURE_LIMIT = 25.0;
+            const MIN_PS_LIMIT = 0.0;
+            const MAX_PS_LIMIT = 10.0;
+
+            let actual_min_epap_pre = ROUND_DOWN_TO_0_2(CLAMP(desired_min_epap, MIN_PRESSURE_LIMIT, MAX_PRESSURE_LIMIT));
+            let actual_max_ipap_pre = ROUND_DOWN_TO_0_2(CLAMP(desired_max_ipap, MIN_PRESSURE_LIMIT, MAX_PRESSURE_LIMIT));
+
+            if (actual_max_ipap_pre < actual_min_epap_pre) {
+                return {
+                    "Min EPAP": actual_min_epap_pre.toFixed(1),
+                    "Max IPAP": actual_min_epap_pre.toFixed(1),
+                    "PS": "0.0"
+                };
+            }
+
+            let ps_candidate = ROUND_DOWN_TO_0_2(CLAMP(desired_ps, MIN_PS_LIMIT, MAX_PS_LIMIT));
+            let max_allowed_ps_by_range = actual_max_ipap_pre - actual_min_epap_pre;
+            let actual_ps_final = ROUND_DOWN_TO_0_2(Math.min(ps_candidate, max_allowed_ps_by_range));
+
+            return {
+                "Min EPAP": actual_min_epap_pre.toFixed(1),
+                "Max IPAP": actual_max_ipap_pre.toFixed(1),
+                "PS": actual_ps_final.toFixed(1)
+            };
+        }
+
+        const desiredMinEpapInput = document.getElementById('desiredMinEpap');
+        const desiredMaxIpapInput = document.getElementById('desiredMaxIpap');
+        const desiredPsInput = document.getElementById('desiredPs');
+        const calculateButton = document.getElementById('calculateButton');
+        const actualMinEpapOutput = document.getElementById('actualMinEpap');
+        const actualMaxIpapOutput = document.getElementById('actualMaxIpap');
+        const actualPsOutput = document.getElementById('actualPs');
+
+        function updateCalculator() {
+            const desiredMinEpap = parseFloat(desiredMinEpapInput.value);
+            const desiredMaxIpap = parseFloat(desiredMaxIpapInput.value);
+            const desiredPs = parseFloat(desiredPsInput.value);
+
+            if (!isNaN(desiredMinEpap) && !isNaN(desiredMaxIpap) && !isNaN(desiredPs)) {
+                const result = CALCULATE_RESMED_VAUTO_SETTINGS(desiredMinEpap, desiredMaxIpap, desiredPs);
+                actualMinEpapOutput.textContent = "Min EPAP: " + result["Min EPAP"];
+                actualMaxIpapOutput.textContent = "Max IPAP: " + result["Max IPAP"];
+                actualPsOutput.textContent = "PS: " + result["PS"];
+            } else {
+                actualMinEpapOutput.textContent = "Min EPAP:";
+                actualMaxIpapOutput.textContent = "Max IPAP:";
+                actualPsOutput.textContent = "PS:";
+            }
+        }
+
+        calculateButton.addEventListener('click', updateCalculator);
+        desiredMinEpapInput.addEventListener('input', updateCalculator);
+        desiredMaxIpapInput.addEventListener('input', updateCalculator);
+        desiredPsInput.addEventListener('input', updateCalculator);
+
+        updateCalculator();
+    </script>
+
+</body>
+</html>
